@@ -39,7 +39,7 @@ jobs:
             make
             curl
             mingw-w64-x86_64-gcc
-            
+
       - name: Install pinned MinHook package
         shell: msys2 {0}
         run: |
@@ -59,7 +59,7 @@ jobs:
           g++ --version
           pacman -Q mingw-w64-x86_64-gcc mingw-w64-x86_64-MinHook
 
-      - name: Compile xinput1_3.dll and dinput8.dll
+      - name: Compile DLLs and collect release files
         shell: msys2 {0}
         working-directory: xv2patcher
         run: |
@@ -75,8 +75,18 @@ jobs:
           test -f dinput8.dll
           cp dinput8.dll release/
 
+          test -f Epatches/misc.xml
+          test -f Epatches/prebaked_patches.xml
+          cp Epatches/misc.xml release/
+          cp Epatches/prebaked_patches.xml release/
+
           cd release
-          sha256sum xinput1_3.dll dinput8.dll > SHA256SUMS.txt
+          sha256sum \
+            xinput1_3.dll \
+            dinput8.dll \
+            misc.xml \
+            prebaked_patches.xml \
+            > SHA256SUMS.txt
 
       - name: Attest xinput1_3.dll
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
@@ -90,6 +100,18 @@ jobs:
         with:
           subject-path: xv2patcher/release/dinput8.dll
 
+      - name: Attest misc.xml
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: xv2patcher/release/misc.xml
+
+      - name: Attest prebaked_patches.xml
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: xv2patcher/release/prebaked_patches.xml
+
       - name: Create draft release and attach files
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         shell: pwsh
@@ -100,12 +122,14 @@ jobs:
           gh release create "$env:RELEASE_TAG" `
             "xv2patcher/release/xinput1_3.dll" `
             "xv2patcher/release/dinput8.dll" `
+            "xv2patcher/release/misc.xml" `
+            "xv2patcher/release/prebaked_patches.xml" `
             "xv2patcher/release/SHA256SUMS.txt" `
             --repo "${{ github.repository }}" `
             --verify-tag `
             --draft `
-            --title "XV2 Patcher Online compatibility build $env:RELEASE_TAG" `
-            --notes "Community compatibility build based on Eternity's xv2patcher. Both DLL variants were compiled through the public GitHub Actions workflow and include cryptographic build provenance. Use only one DLL variant at a time." `
+            --title "DBXV2 1.27 Patcher Online Compatibility Build $env:RELEASE_TAG" `
+            --notes "Community compatibility build based on Eternity's xv2patcher. Both DLL variants and the included Epatch XML files were produced through the public GitHub Actions workflow and include cryptographic build provenance. Use only one DLL variant at a time. Place misc.xml and prebaked_patches.xml in the XV2PATCHER/Epatches folder." `
             --generate-notes
 
       - name: Publish immutable release
